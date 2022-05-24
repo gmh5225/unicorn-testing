@@ -11,5 +11,5 @@ include-before = [
 type = "executable"
 sources = ["src/**.cpp", "src/**.h"]
 compile-features = ["cxx_std_20"]
-link-libraries = ["unicorn"]
+link-libraries = ["unicorn-static"]
 compile-definitions = ["NOMINMAX"]

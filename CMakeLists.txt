@@ -76,7 +76,7 @@ target_compile_features(test-unicorn PRIVATE
 )
 
 target_link_libraries(test-unicorn PRIVATE
-	unicorn
+	unicorn-static
 )
 
 unset(CMKR_TARGET)
