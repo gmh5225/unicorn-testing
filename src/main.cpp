@@ -3,7 +3,7 @@
 #include <unicorn/unicorn.h>
 
 // memory address where emulation starts
-#define ADDRESS 0x41F000
+#define ADDRESS 0x401000
 
 // code to be emulated
 unsigned char X86_CODE32[] = {
@@ -12,7 +12,7 @@ unsigned char X86_CODE32[] = {
     0x41, 0x00, 0x58, 0x90, 0x90, 0xBB, 0xBB, 0xBB, 0xBB, 0x00, 0x50,
     0x66, 0xB8, 0xEB, 0xE9, 0x66, 0x87, 0x05, 0x1B, 0xF0, 0x41, 0x00,
     0xB8, 0xAA, 0xAA, 0xAA, 0xAA, 0x87, 0x04, 0x24, 0xC3};
-
+unsigned char X86_CODE32_RET[] = {0x90, 0xc3};
 // callback for tracing basic blocks
 static void hook_block(uc_engine *uc, uint64_t address, uint32_t size,
                        void *user_data) {
@@ -40,8 +40,8 @@ static void hook_code(uc_engine *uc, uint64_t address, uint32_t size,
   printf(">>> --- espdata is 0x%x\n", espdata);
 
   // Uncomment below code to stop the emulation using uc_emu_stop()
-  // if (address == 0x1000009)
-  //    uc_emu_stop(uc);
+  if (address == /*0x41f034*/ 0x0040104F)
+    uc_emu_stop(uc);
 }
 
 #define PAGE_4KB 0x1000
@@ -78,15 +78,15 @@ static void hook_mem64(uc_engine *uc, uc_mem_type type, uint64_t address,
   default:
     break;
   case UC_MEM_READ: {
-    // hack espdata
-    // 0x19ff28
-    if (0x19ff28 == address) {
-      int data = 0x0040105E;
-      int err = uc_mem_write(uc, 0x19ff28, &data, 4);
-      if (err) {
-        printf("hook_mem64:uc_mem_write esp failed!\n");
-      }
-    }
+    //// hack espdata
+    //// 0x19ff28
+    // if (0x19ff28 == address) {
+    //   int data = 0x0040105E;
+    //   int err = uc_mem_write(uc, 0x19ff28, &data, 4);
+    //   if (err) {
+    //     printf("hook_mem64:uc_mem_write esp failed!\n");
+    //   }
+    // }
     printf(">>> Memory is being READ at 0x%" PRIx64
            ", data size = %u, data value = 0x%" PRIx64 "\n",
            address, size, value);
@@ -119,8 +119,8 @@ static void test_i386_map_ptr(void) {
     return;
   }
 
-  uc_mem_map(uc, ADDRESS, 2 * 1024 * 1024, UC_PROT_ALL);
-  if ((err = uc_mem_write(uc, ADDRESS, X86_CODE32, sizeof(X86_CODE32)))) {
+  uc_mem_map(uc, ADDRESS, 20 * 1024 * 1024, UC_PROT_ALL);
+  if ((err = uc_mem_write(uc, 0x41F000, X86_CODE32, sizeof(X86_CODE32)))) {
     std::printf("> failed to write memory... reason = %d\n", err);
     return;
   }
@@ -130,6 +130,10 @@ static void test_i386_map_ptr(void) {
 
   // map rsp
   uc_mem_map(uc, r_esp_base, 2 * 1024 * 1024, UC_PROT_ALL);
+
+  // map text
+  // uc_mem_map(uc, 0x00401000, 10 * 1024 * 1024, UC_PROT_ALL);
+  uc_mem_write(uc, 0x0040104E, X86_CODE32_RET, sizeof(X86_CODE32_RET));
 
   int r_ecx = 0;          // ECX register
   int r_edx = 0x0331FD10; // EDX register
@@ -173,7 +177,7 @@ static void test_i386_map_ptr(void) {
               0);
 
   // emulate machine code in infinite time
-  err = uc_emu_start(uc, ADDRESS, ADDRESS + sizeof(X86_CODE32), 0, 0);
+  err = uc_emu_start(uc, 0x41F000, 2 * 1024 * 1024, 0, 0);
   if (err) {
     printf("Failed on uc_emu_start() with error returned %u: %s\n", err,
            uc_strerror(err));
@@ -184,8 +188,14 @@ static void test_i386_map_ptr(void) {
 
   uc_reg_read(uc, UC_X86_REG_ECX, &r_ecx);
   uc_reg_read(uc, UC_X86_REG_EDX, &r_edx);
+  int r_return_esp = 0;
+  uc_reg_read(uc, UC_X86_REG_ESP, &r_return_esp);
+  int r_return_ebp = 0;
+  uc_reg_read(uc, UC_X86_REG_EBP, &r_return_ebp);
   printf(">>> ECX = 0x%x\n", r_ecx);
   printf(">>> EDX = 0x%x\n", r_edx);
+  printf(">>> ESP = 0x%x\n", r_return_esp);
+  printf(">>> EBP = 0x%x\n", r_return_ebp);
 
   // read from memory
   if (!uc_mem_read(uc, ADDRESS, &tmp, sizeof(tmp)))
