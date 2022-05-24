@@ -27,36 +27,57 @@ if(CMKR_ROOT_PROJECT)
 	configure_file(cmake.toml cmake.toml COPYONLY)
 endif()
 
-project(cmkr_for_beginners
-	DESCRIPTION
-		"A minimal cmkr project."
-)
+include(configurations.cmake)
 
-# Target hello_world
-set(CMKR_TARGET hello_world)
-set(hello_world_SOURCES "")
+project(unicorn-testing)
 
-list(APPEND hello_world_SOURCES
+# unicorn
+set(CMKR_CMAKE_FOLDER ${CMAKE_FOLDER})
+if(CMAKE_FOLDER)
+	set(CMAKE_FOLDER "${CMAKE_FOLDER}/unicorn")
+else()
+	set(CMAKE_FOLDER unicorn)
+endif()
+add_subdirectory(unicorn)
+set(CMAKE_FOLDER ${CMKR_CMAKE_FOLDER})
+
+# Target test-unicorn
+set(CMKR_TARGET test-unicorn)
+set(test-unicorn_SOURCES "")
+
+list(APPEND test-unicorn_SOURCES
 	"src/main.cpp"
 )
 
-list(APPEND hello_world_SOURCES
+list(APPEND test-unicorn_SOURCES
 	cmake.toml
 )
 
-set(CMKR_SOURCES ${hello_world_SOURCES})
-add_executable(hello_world)
+set(CMKR_SOURCES ${test-unicorn_SOURCES})
+add_executable(test-unicorn)
 
-if(hello_world_SOURCES)
-	target_sources(hello_world PRIVATE ${hello_world_SOURCES})
+if(test-unicorn_SOURCES)
+	target_sources(test-unicorn PRIVATE ${test-unicorn_SOURCES})
 endif()
 
 get_directory_property(CMKR_VS_STARTUP_PROJECT DIRECTORY ${PROJECT_SOURCE_DIR} DEFINITION VS_STARTUP_PROJECT)
 if(NOT CMKR_VS_STARTUP_PROJECT)
-	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hello_world)
+	set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT test-unicorn)
 endif()
 
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${hello_world_SOURCES})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${test-unicorn_SOURCES})
+
+target_compile_definitions(test-unicorn PRIVATE
+	NOMINMAX
+)
+
+target_compile_features(test-unicorn PRIVATE
+	cxx_std_20
+)
+
+target_link_libraries(test-unicorn PRIVATE
+	unicorn
+)
 
 unset(CMKR_TARGET)
 unset(CMKR_SOURCES)

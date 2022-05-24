@@ -7,7 +7,7 @@ include-before = [
 
 [subdir.unicorn]
 
-[target.hello_world]
+[target.test-unicorn]
 type = "executable"
 sources = ["src/**.cpp", "src/**.h"]
 compile-features = ["cxx_std_20"]
