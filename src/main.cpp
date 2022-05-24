@@ -72,11 +72,41 @@ void invalid_mem(uc_engine *uc, uc_mem_type type, uint64_t address, int size,
   }
 }
 
+static void hook_mem64(uc_engine *uc, uc_mem_type type, uint64_t address,
+                       int size, int64_t value, void *user_data) {
+  switch (type) {
+  default:
+    break;
+  case UC_MEM_READ: {
+    // hack espdata
+    // 0x19ff28
+    if (0x19ff28 == address) {
+      int data = 0x0040105E;
+      int err = uc_mem_write(uc, 0x19ff28, &data, 4);
+      if (err) {
+        printf("hook_mem64:uc_mem_write esp failed!\n");
+      }
+    }
+    printf(">>> Memory is being READ at 0x%" PRIx64
+           ", data size = %u, data value = 0x%" PRIx64 "\n",
+           address, size, value);
+  }
+
+  break;
+  case UC_MEM_WRITE:
+    printf(">>> Memory is being WRITE at 0x%" PRIx64
+           ", data size = %u, data value = 0x%" PRIx64 "\n",
+           address, size, value);
+    break;
+  }
+}
+
 static void test_i386_map_ptr(void) {
   uc_engine *uc;
   uc_err err;
   uint32_t tmp;
-  uc_hook trace1, trace2, invalid_mem_hook;
+  uc_hook trace1, trace2, invalid_mem_hook, hook_mem_trace_read,
+      hook_mem_trace_write;
   void *mem;
 
   printf("===================================\n");
@@ -135,6 +165,12 @@ static void test_i386_map_ptr(void) {
     std::printf("> uc_hook_add error, reason = %d\n", err);
     return;
   }
+
+  // tracing all memory READ/WRITE access (with @begin > @end)
+  uc_hook_add(uc, &hook_mem_trace_read, UC_HOOK_MEM_READ, hook_mem64, NULL, 1,
+              0);
+  uc_hook_add(uc, &hook_mem_trace_write, UC_HOOK_MEM_WRITE, hook_mem64, NULL, 1,
+              0);
 
   // emulate machine code in infinite time
   err = uc_emu_start(uc, ADDRESS, ADDRESS + sizeof(X86_CODE32), 0, 0);
